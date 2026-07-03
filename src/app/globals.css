@@ -1,0 +1,95 @@
+@import "tailwindcss";
+
+:root {
+  --ink: #0a0a0a;
+  --paper: #f4efe6;
+  --bone: #f5f0e8;
+  --cream: #c4a574;
+  --black: #000000;
+  --safe-top: env(safe-area-inset-top, 0px);
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+  --safe-left: env(safe-area-inset-left, 0px);
+  --safe-right: env(safe-area-inset-right, 0px);
+}
+
+@theme inline {
+  --color-ink: var(--ink);
+  --color-paper: var(--paper);
+  --color-bone: var(--bone);
+  --color-cream: var(--cream);
+  --color-black: var(--black);
+  --font-sans: var(--font-body);
+  --font-display: var(--font-display);
+  --font-mono: var(--font-mono);
+}
+
+html {
+  scroll-behavior: smooth;
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+
+body {
+  background: var(--ink);
+  color: var(--bone);
+  font-family: var(--font-body), system-ui, sans-serif;
+  overflow-x: hidden;
+}
+
+.font-display {
+  font-family: var(--font-display), Impact, "Arial Narrow", sans-serif;
+}
+
+.font-mono {
+  font-family: var(--font-mono), ui-monospace, monospace;
+}
+
+.book-cover {
+  background: #0d0d0d;
+}
+
+::selection {
+  background: var(--cream);
+  color: var(--ink);
+}
+
+input,
+select,
+textarea,
+button {
+  font: inherit;
+}
+
+/* 16px+ inputs prevent iOS zoom on focus */
+input,
+select,
+textarea {
+  font-size: 1rem;
+  max-width: 100%;
+}
+
+input:-webkit-autofill,
+textarea:-webkit-autofill,
+select:-webkit-autofill {
+  -webkit-text-fill-color: var(--ink);
+  box-shadow: 0 0 0 1000px #fff inset;
+  transition: background-color 9999s ease-in-out 0s;
+}
+
+.safe-px {
+  padding-left: max(1.25rem, var(--safe-left));
+  padding-right: max(1.25rem, var(--safe-right));
+}
+
+.safe-pb {
+  padding-bottom: max(0.75rem, var(--safe-bottom));
+}
+
+.safe-pt {
+  padding-top: max(0.75rem, var(--safe-top));
+}
+
+.tap-target {
+  min-height: 2.75rem;
+  min-width: 2.75rem;
+}
