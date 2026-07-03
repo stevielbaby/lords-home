@@ -34,8 +34,8 @@ export const metadata: Metadata = {
     images: [
       {
         url: "/opengraph-image",
-        width: 1200,
-        height: 630,
+        width: 1080,
+        height: 1920,
         alt: `Pre-order ${site.tagline} by ${site.author}`,
         type: "image/png",
       },

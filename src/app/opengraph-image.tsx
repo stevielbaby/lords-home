@@ -4,12 +4,12 @@ import { join } from "node:path";
 import { site } from "@/lib/site";
 
 export const alt = `Pre-order ${site.tagline} by ${site.author}`;
+/** Vertical share card — poster orientation for iMessage / stories-style previews */
 export const size = {
-  width: 1200,
-  height: 630,
+  width: 1080,
+  height: 1920,
 };
 export const contentType = "image/png";
-/** Bust crawler caches when the share card design changes */
 export const revalidate = 60;
 
 async function loadGoogleFont(family: string, weight: number) {
@@ -44,23 +44,24 @@ type Doodle = {
   opacity?: number;
 };
 
-/** Sketch marks — absolute placements on the light field */
 const doodles: Doodle[] = [
-  { text: "IT IS SO", x: 48, y: 28, rotate: -8, size: 28 },
-  { text: "HOME", x: 980, y: 42, rotate: 12, size: 26 },
-  { text: "YES", x: 36, y: 120, rotate: -18, size: 34 },
-  { text: "+", x: 1080, y: 150, rotate: 0, size: 42 },
-  { text: "NOW", x: 70, y: 200, rotate: 14, size: 24 },
-  { text: "+", x: 1040, y: 430, rotate: -6, size: 36 },
-  { text: "$", x: 54, y: 470, rotate: 10, size: 40 },
-  { text: "E", x: 110, y: 520, rotate: -12, size: 36 },
-  { text: "ARM", x: 200, y: 70, rotate: -4, size: 22 },
-  { text: "KEY", x: 1040, y: 250, rotate: 8, size: 22 },
-  { text: "PEACE", x: 900, y: 540, rotate: -10, size: 20 },
-  { text: "O", x: 40, y: 300, rotate: 0, size: 30, opacity: 0.5 },
-  { text: "X", x: 1100, y: 480, rotate: 25, size: 28 },
-  { text: "YES", x: 980, y: 360, rotate: -14, size: 24 },
-  { text: "NOW", x: 160, y: 400, rotate: 8, size: 22 },
+  { text: "IT IS SO", x: 48, y: 80, rotate: -8, size: 36 },
+  { text: "HOME", x: 820, y: 100, rotate: 12, size: 34 },
+  { text: "YES", x: 40, y: 280, rotate: -18, size: 42 },
+  { text: "+", x: 960, y: 320, rotate: 0, size: 52 },
+  { text: "NOW", x: 60, y: 480, rotate: 14, size: 30 },
+  { text: "+", x: 920, y: 1400, rotate: -6, size: 44 },
+  { text: "$", x: 50, y: 1500, rotate: 10, size: 48 },
+  { text: "E", x: 120, y: 1620, rotate: -12, size: 44 },
+  { text: "ARM", x: 180, y: 160, rotate: -4, size: 28 },
+  { text: "KEY", x: 900, y: 560, rotate: 8, size: 28 },
+  { text: "PEACE", x: 780, y: 1680, rotate: -10, size: 26 },
+  { text: "O", x: 40, y: 700, rotate: 0, size: 36, opacity: 0.5 },
+  { text: "X", x: 980, y: 1520, rotate: 25, size: 34 },
+  { text: "YES", x: 860, y: 900, rotate: -14, size: 30 },
+  { text: "NOW", x: 140, y: 1100, rotate: 8, size: 28 },
+  { text: "HOME", x: 40, y: 1750, rotate: -6, size: 32 },
+  { text: "IT IS SO", x: 800, y: 1780, rotate: 8, size: 28 },
 ];
 
 export default async function Image() {
@@ -93,7 +94,7 @@ export default async function Image() {
             right: 0,
             bottom: 0,
             background:
-              "radial-gradient(circle at 20% 20%, rgba(255,255,255,0.45) 0%, transparent 42%), radial-gradient(circle at 80% 70%, rgba(0,0,0,0.06) 0%, transparent 40%)",
+              "radial-gradient(circle at 20% 18%, rgba(255,255,255,0.5) 0%, transparent 42%), radial-gradient(circle at 80% 75%, rgba(0,0,0,0.07) 0%, transparent 40%)",
           }}
         />
 
@@ -120,11 +121,11 @@ export default async function Image() {
         <div
           style={{
             position: "absolute",
-            top: 90,
-            left: 90,
-            width: 54,
-            height: 54,
-            border: "3px solid #0a0a0a",
+            top: 200,
+            left: 80,
+            width: 64,
+            height: 64,
+            border: "4px solid #0a0a0a",
             borderRadius: 999,
             opacity: 0.7,
           }}
@@ -132,23 +133,22 @@ export default async function Image() {
         <div
           style={{
             position: "absolute",
-            top: 470,
-            left: 1020,
-            width: 36,
-            height: 36,
-            border: "3px solid #0a0a0a",
+            top: 1480,
+            left: 900,
+            width: 48,
+            height: 48,
+            border: "4px solid #0a0a0a",
             borderRadius: 999,
             opacity: 0.65,
           }}
         />
-        {/* Cross doodle */}
         <div
           style={{
             position: "absolute",
-            top: 430,
-            left: 1080,
-            width: 4,
-            height: 40,
+            top: 1420,
+            left: 960,
+            width: 5,
+            height: 52,
             backgroundColor: "#0a0a0a",
             opacity: 0.8,
           }}
@@ -156,10 +156,10 @@ export default async function Image() {
         <div
           style={{
             position: "absolute",
-            top: 446,
-            left: 1064,
-            width: 36,
-            height: 4,
+            top: 1440,
+            left: 938,
+            width: 48,
+            height: 5,
             backgroundColor: "#0a0a0a",
             opacity: 0.8,
           }}
@@ -174,8 +174,8 @@ export default async function Image() {
             height: "100%",
             alignItems: "center",
             justifyContent: "center",
-            paddingTop: 28,
-            paddingBottom: 36,
+            paddingTop: 80,
+            paddingBottom: 80,
             paddingLeft: 48,
             paddingRight: 48,
           }}
@@ -184,7 +184,7 @@ export default async function Image() {
             style={{
               display: "flex",
               fontFamily: "Bebas Neue",
-              fontSize: 132,
+              fontSize: 168,
               lineHeight: 0.86,
               letterSpacing: "0.02em",
               textTransform: "uppercase",
@@ -199,22 +199,22 @@ export default async function Image() {
             style={{
               display: "flex",
               position: "relative",
-              marginTop: 8,
-              marginBottom: 8,
-              width: 248,
-              height: 332,
+              marginTop: 36,
+              marginBottom: 36,
+              width: 420,
+              height: 560,
               backgroundColor: "#0d0d0d",
               boxShadow:
-                "0 36px 70px rgba(0,0,0,0.38), 0 14px 28px rgba(0,0,0,0.22)",
-              border: "3px solid #0a0a0a",
+                "0 48px 90px rgba(0,0,0,0.4), 0 18px 36px rgba(0,0,0,0.24)",
+              border: "4px solid #0a0a0a",
               transform: "rotate(-1.5deg)",
             }}
           >
             <img
               src={bookCoverSrc}
               alt=""
-              width={248}
-              height={332}
+              width={420}
+              height={560}
               style={{
                 width: "100%",
                 height: "100%",
@@ -227,7 +227,7 @@ export default async function Image() {
             style={{
               display: "flex",
               fontFamily: "Bebas Neue",
-              fontSize: 132,
+              fontSize: 168,
               lineHeight: 0.86,
               letterSpacing: "0.02em",
               textTransform: "uppercase",
@@ -240,9 +240,9 @@ export default async function Image() {
           <div
             style={{
               display: "flex",
-              marginTop: 6,
+              marginTop: 16,
               fontFamily: "IBM Plex Mono",
-              fontSize: 22,
+              fontSize: 28,
               letterSpacing: "0.28em",
               textTransform: "uppercase",
               color: "#0a0a0a",
