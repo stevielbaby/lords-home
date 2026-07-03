@@ -9,6 +9,8 @@ export const size = {
   height: 630,
 };
 export const contentType = "image/png";
+/** Bust crawler caches when the share card design changes */
+export const revalidate = 60;
 
 async function loadGoogleFont(family: string, weight: number) {
   const css = await fetch(

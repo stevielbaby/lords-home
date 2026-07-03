@@ -30,12 +30,22 @@ export const metadata: Metadata = {
     type: "website",
     siteName: site.name,
     locale: "en_US",
-    url: "/",
+    url: site.url,
+    images: [
+      {
+        url: "/opengraph-image",
+        width: 1200,
+        height: 630,
+        alt: `Pre-order ${site.tagline} by ${site.author}`,
+        type: "image/png",
+      },
+    ],
   },
   twitter: {
     card: "summary_large_image",
     title: `${site.tagline} | ${site.author}`,
     description: site.shareDescription,
+    images: ["/opengraph-image"],
   },
   appleWebApp: {
     capable: true,

@@ -1,8 +1,17 @@
+const siteUrl =
+  process.env.NEXT_PUBLIC_SITE_URL ??
+  (process.env.VERCEL_PROJECT_PRODUCTION_URL
+    ? `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}`
+    : process.env.VERCEL_URL
+      ? `https://${process.env.VERCEL_URL}`
+      : "https://lords-home-gamma.vercel.app");
+
 export const site = {
   name: "Lord's Home",
   author: "Gavin Dees",
   tagline: "Property of Yahweh",
-  url: "https://lordshome.co",
+  /** Canonical public URL — must match the host you share (iMessage reads og:image from here). */
+  url: siteUrl,
   launchDate: "07.26.26",
   instagram: "https://www.instagram.com/lordshome.co/",
   email: "hello@lordshome.co",
