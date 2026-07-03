@@ -21,12 +21,21 @@ const mono = IBM_Plex_Mono({
 });
 
 export const metadata: Metadata = {
+  metadataBase: new URL(site.url),
   title: `${site.author} | ${site.name}`,
-  description: `${site.tagline}. ${site.mission}`,
+  description: `${site.tagline}. ${site.shareDescription}`,
   openGraph: {
     title: `${site.tagline} | ${site.author}`,
-    description: site.mission,
+    description: site.shareDescription,
     type: "website",
+    siteName: site.name,
+    locale: "en_US",
+    url: "/",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: `${site.tagline} | ${site.author}`,
+    description: site.shareDescription,
   },
   appleWebApp: {
     capable: true,

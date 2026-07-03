@@ -10,14 +10,24 @@ Personal branding / book funnel site for **Gavin Dees** and **Lord's Home**, bui
 
 ## Funnel flow (demo)
 
-1. **Landing** (`/`) — hero, book pitch, offer picker (hardcover / study-guide bundle), testimonials, about, newsletter
-2. **Checkout** (`/checkout`) — contact, delivery, shipping, payment, order summary
-3. **Speaking tickets** (`/events`) — post-purchase OTO for live engagements (skippable)
-4. **Thank you** (`/thank-you`) — confirmation with book + optional tickets
+Cart-based (Shopify-shaped) so post-card upsells still land in the **same cart** before capture:
 
-Speaking tickets are controlled by `speakingEventsEnabled` in `src/lib/funnel.ts`. Turn that off when there is no live tour — checkout will skip straight to thank-you.
+1. **Landing** (`/`) — pick book package → `createFunnelCart` (book line item)
+2. **Checkout** (`/checkout?cart=…`) — contact, shipping, card on file (**not charged yet**) → cart status `pending_upsell`
+3. **Speaking tickets** (`/events?cart=…`) — `addTicketsToCart` (cartLinesAdd) or skip → `completeCheckout` charges **full cart once**
+4. **Thank you** (`/thank-you`) — book + optional tickets
 
-No real payments are processed. Checkout is a full UI preview until Shopify is connected.
+Speaking tickets are controlled by `speakingEventsEnabled` in `src/lib/funnel.ts`.
+
+### Shopify handoff
+
+| Step | Mock today | Live Storefront API |
+| --- | --- | --- |
+| Start cart | `sessionStorage` cart | `cartCreate` |
+| Add tickets OTO | `addTicketsToCart` | `cartLinesAdd` |
+| Pay | Simulated capture of full cart | Redirect to `checkoutUrl` **after** lines are complete |
+
+Important: standard Shopify hosted checkout cannot insert an OTO *after* payment is captured. This funnel keeps the card on file / buyer identity, adds ticket lines to the open cart, then finalizes **once**. That maps cleanly to Storefront cart APIs.
 
 ## Develop
 

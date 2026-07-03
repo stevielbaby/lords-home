@@ -2,12 +2,15 @@ export const site = {
   name: "Lord's Home",
   author: "Gavin Dees",
   tagline: "Property of Yahweh",
+  url: "https://lordshome.co",
   launchDate: "07.26.26",
   instagram: "https://www.instagram.com/lordshome.co/",
   email: "hello@lordshome.co",
   roles: ["PASTOR", "AUTHOR", "CREATOR"],
   mission:
     "Publishing the Word of God through media, art, and fashion.",
+  shareDescription:
+    "A book about identity, family, and coming home to the One who already claimed you.",
 };
 
 export const bookCopy = {
@@ -66,7 +69,7 @@ export const testimonials = [
 
 export const checkoutCopy = {
   demoNote:
-    "Demo checkout — no payment is processed. Shopify will power this when connected.",
+    "Demo checkout — payment is captured only after the full cart is finalized (book + any tickets).",
   trust: [
     "Secure checkout",
     "Prayed over before shipping",
@@ -76,10 +79,11 @@ export const checkoutCopy = {
 
 export const thankYouCopy = {
   heading: "You're in the house",
-  body: "Your order is confirmed. We're packing it with care — and praying over it before it leaves.",
+  body: "Your order is complete. Checkout is closed — there’s nothing left to buy in this flow.",
+  sealed: "Order complete · Funnel closed",
   nextSteps: [
-    "You'll get an email receipt shortly.",
+    "You’ll get an email receipt shortly.",
     "We prepare and pray over every order before it ships.",
-    "Tracking lands in your inbox once it's on the way.",
+    "Tracking lands in your inbox once it’s on the way.",
   ],
 };

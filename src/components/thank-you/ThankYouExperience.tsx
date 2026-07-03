@@ -3,9 +3,7 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { BookCover } from "@/components/BookCover";
-import { FunnelProgress } from "@/components/FunnelProgress";
-import { loadOrder } from "@/lib/order";
-import { funnelConfig } from "@/lib/funnel";
+import { clearCart, loadOrder } from "@/lib/cart";
 import { formatMoney } from "@/lib/shopify/client";
 import type { MockOrder, Product } from "@/lib/shopify/types";
 import { site, thankYouCopy } from "@/lib/site";
@@ -22,34 +20,64 @@ export function ThankYouExperience({
   const [order, setOrder] = useState<MockOrder | null>(null);
 
   useEffect(() => {
+    // Funnel is over — cart must not survive on this screen
+    clearCart();
+
     const stored = loadOrder();
     if (stored && stored.id === orderId) {
       setOrder(stored);
     }
+
+    // Drop checkout/events out of the back-stack feel: replace current entry
+    // so refresh stays on receipt; back from here goes home-ish via browser history.
+    if (typeof window !== "undefined") {
+      window.history.replaceState(
+        { funnelClosed: true, orderId },
+        "",
+        `/thank-you?order=${encodeURIComponent(orderId)}`,
+      );
+    }
   }, [orderId]);
 
   const hasTickets = Boolean(order?.tickets && order.tickets.length > 0);
+  const nextSteps = hasTickets
+    ? [
+        ...thankYouCopy.nextSteps,
+        "Ticket details and entry info will arrive by email before the night.",
+      ]
+    : thankYouCopy.nextSteps;
 
   return (
     <div className="min-h-[100svh] bg-ink text-bone">
       <header className="safe-pt border-b border-bone/10 px-4 py-3 sm:px-5 sm:py-4 md:px-8">
-        <div className="mx-auto flex max-w-4xl flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="mx-auto flex max-w-4xl items-center justify-between gap-3">
           <Link
             href="/"
             className="tap-target flex items-center font-display text-base tracking-[0.14em] uppercase sm:text-lg sm:tracking-[0.18em]"
           >
             {site.name}
           </Link>
-          <FunnelProgress
-            current="done"
-            showTickets={funnelConfig.speakingEventsEnabled}
-          />
+          <p className="font-mono text-[10px] tracking-[0.18em] text-cream uppercase sm:text-[11px]">
+            {thankYouCopy.sealed}
+          </p>
         </div>
       </header>
 
       <main className="mx-auto max-w-4xl px-4 py-10 safe-pb sm:px-5 sm:py-14 md:px-8 md:py-20">
-        <p className="font-mono text-[10px] tracking-[0.24em] text-cream uppercase sm:text-[11px] sm:tracking-[0.3em]">
-          Thank you
+        <div className="mb-6 inline-flex items-center gap-2 border border-cream/40 bg-cream/10 px-3 py-2">
+          <span
+            aria-hidden
+            className="flex h-5 w-5 items-center justify-center rounded-full bg-cream font-mono text-[11px] text-ink"
+          >
+            ✓
+          </span>
+          <span className="font-mono text-[10px] tracking-[0.2em] text-cream uppercase sm:text-[11px]">
+            Payment captured · Checkout closed
+          </span>
+        </div>
+
+        <p className="font-mono text-[10px] tracking-[0.24em] text-bone/45 uppercase sm:text-[11px] sm:tracking-[0.3em]">
+          Receipt
         </p>
         <h1 className="mt-3 font-display text-4xl tracking-[0.04em] uppercase sm:mt-4 sm:text-5xl sm:tracking-[0.06em] md:text-7xl">
           {thankYouCopy.heading}
@@ -57,7 +85,7 @@ export function ThankYouExperience({
         <p className="mt-5 max-w-xl text-base leading-relaxed text-bone/70 md:text-lg">
           {thankYouCopy.body}
           {hasTickets
-            ? " Your tickets are reserved — details are in your confirmation email."
+            ? " Your tickets are reserved with this same order."
             : ""}
         </p>
 
@@ -147,7 +175,7 @@ export function ThankYouExperience({
 
           {order && (
             <div className="mt-6 flex justify-between gap-4 border-t border-bone/10 pt-4 font-display text-xl tracking-[0.06em] text-bone uppercase sm:text-2xl">
-              <span>Total</span>
+              <span>Total paid</span>
               <span>{formatMoney(order.total, order.currencyCode)}</span>
             </div>
           )}
@@ -158,13 +186,7 @@ export function ThankYouExperience({
             What happens next
           </h2>
           <ol className="mt-6 space-y-4">
-            {(hasTickets
-              ? [
-                  ...thankYouCopy.nextSteps,
-                  "Ticket details and entry info will arrive by email before the night.",
-                ]
-              : thankYouCopy.nextSteps
-            ).map((step, index) => (
+            {nextSteps.map((step, index) => (
               <li key={step} className="flex gap-4 text-bone/75">
                 <span className="font-mono text-sm text-cream">
                   0{index + 1}
@@ -175,7 +197,12 @@ export function ThankYouExperience({
           </ol>
         </section>
 
-        <div className="mt-10 flex flex-col gap-3 sm:mt-14 sm:flex-row sm:gap-4">
+        <p className="mt-10 max-w-lg font-mono text-[11px] leading-relaxed tracking-[0.12em] text-bone/40 uppercase">
+          This checkout funnel is finished. Going back will not reopen the cart
+          or ticket offer for this order.
+        </p>
+
+        <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:gap-4">
           <Link
             href="/"
             className="inline-flex min-h-12 w-full items-center justify-center bg-bone px-8 py-4 font-display text-lg tracking-[0.18em] text-ink uppercase transition hover:bg-cream sm:w-auto"

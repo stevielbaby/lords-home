@@ -45,6 +45,71 @@ export type ShippingMethod = {
   eta: string;
 };
 
+/** Line item in the funnel cart — maps 1:1 to Shopify cart lines. */
+export type CartLine = {
+  id: string;
+  merchandiseId: string;
+  quantity: number;
+  title: string;
+  subtitle?: string;
+  unitPrice: number;
+  currencyCode: string;
+  kind: "book" | "ticket";
+  /** Ticket metadata for confirmation UI */
+  ticketMeta?: {
+    eventId: string;
+    eventTitle: string;
+    city: string;
+    venue: string;
+    date: string;
+    time: string;
+    ticketTitle: string;
+  };
+};
+
+export type CartBuyer = {
+  email: string;
+  firstName: string;
+  lastName: string;
+  address1: string;
+  address2?: string;
+  city: string;
+  province: string;
+  zip: string;
+  country: string;
+  marketingOptIn: boolean;
+};
+
+/** Payment fingerprint only — never store full PAN. */
+export type CartPayment = {
+  last4: string;
+  brand: string;
+  /** Mock token; live Shopify uses checkoutUrl instead of our card form */
+  mockToken: string;
+};
+
+/**
+ * Funnel cart.
+ * open → buyer filling checkout
+ * pending_upsell → card/info captured, OTO can still cartLinesAdd
+ * completed → paid / handed off to Shopify checkout
+ */
+export type FunnelCart = {
+  id: string;
+  status: "open" | "pending_upsell" | "completed";
+  lines: CartLine[];
+  shippingMethodId: string;
+  shippingPrice: number;
+  shippingTitle: string;
+  currencyCode: string;
+  buyer?: CartBuyer;
+  payment?: CartPayment;
+  /** Populated when Storefront API cartCreate succeeds */
+  shopifyCartId?: string;
+  checkoutUrl?: string;
+  updatedAt: string;
+};
+
 export type OrderTicket = {
   eventId: string;
   eventTitle: string;
@@ -68,7 +133,6 @@ export type MockOrder = {
   quantity: number;
   subtotal: number;
   shipping: number;
-  /** Book subtotal + shipping (before tickets) */
   bookTotal: number;
   tickets?: OrderTicket[];
   ticketsTotal: number;
@@ -86,4 +150,6 @@ export type MockOrder = {
     zip: string;
     country: string;
   };
+  /** Cart id that produced this order — audit trail for Shopify handoff */
+  cartId?: string;
 };

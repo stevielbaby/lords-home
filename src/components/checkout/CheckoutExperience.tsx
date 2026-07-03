@@ -1,21 +1,40 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo, useState, type FormEvent, type ReactNode } from "react";
+import {
+  useEffect,
+  useMemo,
+  useState,
+  type FormEvent,
+  type ReactNode,
+} from "react";
 import { useRouter } from "next/navigation";
 import { BookCover } from "@/components/BookCover";
 import { FunnelProgress } from "@/components/FunnelProgress";
-import { createOrderId, formatMoney } from "@/lib/shopify/client";
-import { saveOrder } from "@/lib/order";
-import type { Product, ProductVariant, ShippingMethod } from "@/lib/shopify/types";
+import { PaymentProcessingModal } from "@/components/PaymentProcessingModal";
 import { funnelConfig } from "@/lib/funnel";
+import {
+  cardBrandFromNumber,
+  cartGrandTotal,
+  completeCheckout,
+  createFunnelCart,
+  formatMoney,
+  getBookLines,
+  loadCartById,
+  loadOrder,
+  prepareUpsellCheckout,
+  updateBookInCart,
+  updateCartShipping,
+} from "@/lib/shopify/client";
+import type { FunnelCart, Product, ShippingMethod } from "@/lib/shopify/types";
 import { checkoutCopy, site } from "@/lib/site";
 
 type CheckoutExperienceProps = {
   product: Product;
-  initialVariant: ProductVariant;
-  initialQty: number;
   shippingMethods: ShippingMethod[];
+  cartId?: string;
+  fallbackVariantId?: string;
+  fallbackQty?: string;
 };
 
 const fieldClass =
@@ -26,38 +45,132 @@ const labelClass =
 
 export function CheckoutExperience({
   product,
-  initialVariant,
-  initialQty,
   shippingMethods,
+  cartId: cartIdProp,
+  fallbackVariantId,
+  fallbackQty,
 }: CheckoutExperienceProps) {
   const router = useRouter();
-  const [variantId, setVariantId] = useState(initialVariant.id);
-  const [qty, setQty] = useState(Math.max(1, initialQty));
-  const [shippingId, setShippingId] = useState(shippingMethods[0]?.id ?? "");
+  const [cart, setCart] = useState<FunnelCart | null>(null);
+  const [booting, setBooting] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [summaryOpen, setSummaryOpen] = useState(false);
+  const [modalOpen, setModalOpen] = useState(false);
+  const [checkoutReady, setCheckoutReady] = useState(false);
+  const [thankYouPath, setThankYouPath] = useState<string | null>(null);
+
+  const upsellEnabled = funnelConfig.speakingEventsEnabled;
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function boot() {
+      try {
+        let next = cartIdProp ? loadCartById(cartIdProp) : null;
+
+        // Stale cart link after order completed — funnel no longer exists
+        if (cartIdProp && !next) {
+          const order = loadOrder();
+          if (order) {
+            router.replace(`/thank-you?order=${encodeURIComponent(order.id)}`);
+            return;
+          }
+        }
+
+        // Already past payment details — resume OTO, don't re-open checkout form
+        if (next?.status === "pending_upsell") {
+          router.replace(`/events?cart=${encodeURIComponent(next.id)}`);
+          return;
+        }
+
+        if (!next) {
+          const variantId =
+            fallbackVariantId ??
+            product.variants.find((item) => item.badge)?.id ??
+            product.variants[0].id;
+          const qty = Math.max(
+            1,
+            Number.parseInt(fallbackQty ?? "1", 10) || 1,
+          );
+          next = await createFunnelCart({
+            merchandiseId: variantId,
+            quantity: qty,
+          });
+          if (!cancelled) {
+            router.replace(`/checkout?cart=${encodeURIComponent(next.id)}`);
+          }
+        }
+
+        if (!cancelled) setCart(next);
+      } catch {
+        if (!cancelled) setError("Could not load your cart. Start again from the offer.");
+      } finally {
+        if (!cancelled) setBooting(false);
+      }
+    }
+
+    void boot();
+    return () => {
+      cancelled = true;
+    };
+  }, [cartIdProp, fallbackVariantId, fallbackQty, product.variants, router]);
+
+  const bookLine = cart ? getBookLines(cart)[0] : null;
+  const variantId = bookLine?.merchandiseId ?? product.variants[0].id;
+  const qty = bookLine?.quantity ?? 1;
+  const shippingId = cart?.shippingMethodId ?? shippingMethods[0]?.id ?? "";
 
   const variant =
-    product.variants.find((item) => item.id === variantId) ?? initialVariant;
-  const shipping =
-    shippingMethods.find((item) => item.id === shippingId) ??
-    shippingMethods[0];
+    product.variants.find((item) => item.id === variantId) ??
+    product.variants[0];
 
   const totals = useMemo(() => {
-    const unit = Number.parseFloat(variant.price.amount);
-    const ship = Number.parseFloat(shipping?.price.amount ?? "0");
-    const subtotal = unit * qty;
-    const total = subtotal + ship;
-    return { unit, ship, subtotal, total };
-  }, [variant, shipping, qty]);
+    if (!cart) {
+      return { unit: 0, ship: 0, subtotal: 0, total: 0 };
+    }
+    const unit = bookLine?.unitPrice ?? 0;
+    return {
+      unit,
+      ship: cart.shippingPrice,
+      subtotal: unit * qty,
+      total: cartGrandTotal(cart),
+    };
+  }, [cart, bookLine, qty]);
 
-  const payLabel = submitting
-    ? "Processing…"
-    : `Pay ${formatMoney(totals.total, variant.price.currencyCode)}`;
+  const submitLabel = submitting
+    ? upsellEnabled
+      ? "Saving…"
+      : "Processing…"
+    : upsellEnabled
+      ? "Continue"
+      : `Pay ${formatMoney(totals.total, product.priceRange.minVariantPrice.currencyCode)}`;
+
+  async function handleVariantChange(nextVariantId: string) {
+    if (!cart) return;
+    const updated = await updateBookInCart(cart.id, nextVariantId, qty);
+    setCart(updated);
+  }
+
+  async function handleQtyChange(nextQty: number) {
+    if (!cart) return;
+    const updated = await updateBookInCart(
+      cart.id,
+      variantId,
+      Math.max(1, nextQty),
+    );
+    setCart(updated);
+  }
+
+  async function handleShippingChange(nextShippingId: string) {
+    if (!cart) return;
+    const updated = await updateCartShipping(cart.id, nextShippingId);
+    setCart(updated);
+  }
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    if (!cart) return;
     setError(null);
     setSubmitting(true);
 
@@ -71,6 +184,7 @@ export function CheckoutExperience({
     const province = String(form.get("province") ?? "").trim();
     const zip = String(form.get("zip") ?? "").trim();
     const country = String(form.get("country") ?? "United States").trim();
+    const marketingOptIn = form.get("marketing") === "on";
     const card = String(form.get("card") ?? "").replace(/\s/g, "");
     const expiry = String(form.get("expiry") ?? "").trim();
     const cvc = String(form.get("cvc") ?? "").trim();
@@ -82,46 +196,76 @@ export function CheckoutExperience({
     }
 
     if (card.length < 12 || !expiry || cvc.length < 3) {
-      setError("Enter card details to preview the full checkout flow.");
+      setError("Enter card details to continue. Your card is not charged until the order is completed.");
       setSubmitting(false);
       return;
     }
 
-    await new Promise((resolve) => setTimeout(resolve, 1200));
+    try {
+      // Card is stored as a fingerprint only — NOT charged yet.
+      // Tickets can still be cartLinesAdd'd on the next step.
+      await prepareUpsellCheckout(
+        cart.id,
+        {
+          email,
+          firstName,
+          lastName,
+          address1,
+          address2: address2 || undefined,
+          city,
+          province,
+          zip,
+          country,
+          marketingOptIn,
+        },
+        {
+          last4: card.slice(-4),
+          brand: cardBrandFromNumber(card),
+          mockToken: `tok_mock_${card.slice(-4)}`,
+        },
+        shippingId,
+      );
 
-    const orderId = createOrderId();
-    const bookTotal = totals.total;
-    saveOrder({
-      id: orderId,
-      email,
-      variantId: variant.id,
-      variantTitle: variant.title,
-      productTitle: product.title,
-      quantity: qty,
-      subtotal: totals.subtotal,
-      shipping: totals.ship,
-      bookTotal,
-      ticketsTotal: 0,
-      total: bookTotal,
-      currencyCode: variant.price.currencyCode,
-      shippingMethod: shipping?.title ?? "Standard",
-      createdAt: new Date().toISOString(),
-      shippingAddress: {
-        firstName,
-        lastName,
-        address1,
-        address2: address2 || undefined,
-        city,
-        province,
-        zip,
-        country,
-      },
-    });
+      if (upsellEnabled) {
+        router.push(`/events?cart=${encodeURIComponent(cart.id)}`);
+        return;
+      }
 
-    const nextPath = funnelConfig.speakingEventsEnabled
-      ? `/events?order=${encodeURIComponent(orderId)}`
-      : `/thank-you?order=${encodeURIComponent(orderId)}`;
-    router.push(nextPath);
+      setModalOpen(true);
+      setCheckoutReady(false);
+      setThankYouPath(null);
+      const result = await completeCheckout(cart.id);
+      const path =
+        result.mode === "mock" ? result.thankYouPath : result.checkoutUrl;
+      setThankYouPath(path);
+      setCheckoutReady(true);
+    } catch (err) {
+      setModalOpen(false);
+      setCheckoutReady(false);
+      setError(
+        err instanceof Error ? err.message : "Checkout failed. Try again.",
+      );
+      setSubmitting(false);
+    }
+  }
+
+  function handleModalComplete() {
+    if (!thankYouPath) return;
+    if (thankYouPath.startsWith("http")) {
+      window.location.href = thankYouPath;
+      return;
+    }
+    router.push(thankYouPath);
+  }
+
+  if (booting || !cart || !bookLine) {
+    return (
+      <div className="flex min-h-[100svh] items-center justify-center bg-paper px-4 text-ink">
+        <p className="font-mono text-xs tracking-[0.2em] uppercase">
+          {error ?? "Loading cart…"}
+        </p>
+      </div>
+    );
   }
 
   const summaryControls = (
@@ -132,7 +276,7 @@ export function CheckoutExperience({
           <button
             key={item.id}
             type="button"
-            onClick={() => setVariantId(item.id)}
+            onClick={() => void handleVariantChange(item.id)}
             className={`flex min-h-12 w-full items-center justify-between border px-4 py-3 text-left text-sm transition ${
               item.id === variantId
                 ? "border-ink bg-white"
@@ -153,7 +297,7 @@ export function CheckoutExperience({
           <button
             type="button"
             aria-label="Decrease quantity"
-            onClick={() => setQty((value) => Math.max(1, value - 1))}
+            onClick={() => void handleQtyChange(qty - 1)}
             className="tap-target px-3 text-lg leading-none"
           >
             −
@@ -162,7 +306,7 @@ export function CheckoutExperience({
           <button
             type="button"
             aria-label="Increase quantity"
-            onClick={() => setQty((value) => value + 1)}
+            onClick={() => void handleQtyChange(qty + 1)}
             className="tap-target px-3 text-lg leading-none"
           >
             +
@@ -176,26 +320,24 @@ export function CheckoutExperience({
     <dl className="space-y-3 text-sm">
       <div className="flex justify-between">
         <dt className="text-ink/60">Subtotal</dt>
-        <dd>{formatMoney(totals.subtotal, variant.price.currencyCode)}</dd>
+        <dd>{formatMoney(totals.subtotal, cart.currencyCode)}</dd>
       </div>
       <div className="flex justify-between">
         <dt className="text-ink/60">Shipping</dt>
         <dd>
-          {totals.ship === 0
-            ? "Free"
-            : formatMoney(totals.ship, variant.price.currencyCode)}
+          {totals.ship === 0 ? "Free" : formatMoney(totals.ship, cart.currencyCode)}
         </dd>
       </div>
       <div className="flex justify-between border-t border-ink/10 pt-4 font-display text-2xl tracking-[0.06em] uppercase">
         <dt>Total</dt>
-        <dd>{formatMoney(totals.total, variant.price.currencyCode)}</dd>
+        <dd>{formatMoney(totals.total, cart.currencyCode)}</dd>
       </div>
     </dl>
   );
 
   return (
-    <div className="min-h-[100svh] bg-paper text-ink">
-      <header className="safe-pt sticky top-0 z-20 border-b border-ink/10 bg-bone px-4 py-3 sm:px-5 sm:py-4 md:px-8">
+    <div className="flex h-dvh flex-col overflow-hidden bg-paper text-ink">
+      <header className="safe-pt shrink-0 border-b border-ink/10 bg-bone px-4 py-3 sm:px-5 sm:py-4 md:px-8">
         <div className="mx-auto flex max-w-6xl flex-col gap-3">
           <div className="flex items-center justify-between gap-3">
             <Link
@@ -213,16 +355,14 @@ export function CheckoutExperience({
           </div>
           <FunnelProgress
             current="book"
-            showTickets={funnelConfig.speakingEventsEnabled}
+            showTickets={upsellEnabled}
             tone="light"
           />
         </div>
       </header>
 
-      {/* Mobile-first: summary on top, form below. Desktop: form left, summary right. */}
-      <div className="mx-auto grid max-w-6xl gap-0 lg:grid-cols-[1.15fr_0.85fr]">
-        <aside className="order-1 border-b border-ink/10 bg-bone lg:order-2 lg:border-b-0 lg:border-l">
-          {/* Collapsed summary bar — mobile only */}
+      <div className="mx-auto grid min-h-0 w-full max-w-6xl flex-1 grid-rows-[auto_1fr] overflow-hidden lg:grid-cols-[1.15fr_0.85fr] lg:grid-rows-1">
+        <aside className="order-1 shrink-0 border-b border-ink/10 bg-bone lg:order-2 lg:min-h-0 lg:overflow-y-auto lg:border-b-0 lg:border-l">
           <button
             type="button"
             onClick={() => setSummaryOpen((open) => !open)}
@@ -230,10 +370,10 @@ export function CheckoutExperience({
             aria-expanded={summaryOpen}
           >
             <span className="font-mono text-[11px] tracking-[0.18em] uppercase">
-              {summaryOpen ? "Hide order summary" : "Show order summary"}
+              {summaryOpen ? "Hide cart" : "Show cart"}
             </span>
             <span className="font-display text-xl tracking-[0.06em]">
-              {formatMoney(totals.total, variant.price.currencyCode)}
+              {formatMoney(totals.total, cart.currencyCode)}
             </span>
           </button>
 
@@ -242,7 +382,7 @@ export function CheckoutExperience({
           >
             <div className="lg:sticky lg:top-24">
               <h2 className="hidden font-display text-2xl tracking-[0.08em] uppercase lg:block">
-                Order summary
+                Cart
               </h2>
 
               <div className="flex gap-4 border-b border-ink/10 pb-6 lg:mt-8 lg:pb-8">
@@ -258,7 +398,7 @@ export function CheckoutExperience({
                   </p>
                   <p className="mt-1 text-sm text-ink/55">{variant.title}</p>
                   <p className="mt-2 font-mono text-sm sm:mt-3">
-                    {formatMoney(totals.unit, variant.price.currencyCode)}
+                    {formatMoney(totals.unit, cart.currencyCode)}
                   </p>
                 </div>
               </div>
@@ -272,16 +412,18 @@ export function CheckoutExperience({
         <form
           id="checkout-form"
           onSubmit={handleSubmit}
-          className="order-2 px-4 py-8 pb-28 sm:px-5 sm:py-10 md:px-8 md:py-14 lg:order-1 lg:pr-12 lg:pb-14"
+          className="order-2 min-h-0 overflow-y-auto overscroll-contain px-4 py-8 sm:px-5 sm:py-10 md:px-8 md:py-14 lg:order-1 lg:pr-12 lg:pb-14"
         >
           <p className="font-mono text-[10px] tracking-[0.24em] text-ink/45 uppercase sm:text-[11px] sm:tracking-[0.3em]">
             Checkout
           </p>
           <h1 className="mt-2 font-display text-3xl tracking-[0.04em] uppercase sm:mt-3 sm:text-4xl sm:tracking-[0.06em] md:text-5xl">
-            Complete your order
+            {upsellEnabled ? "Your details" : "Complete your order"}
           </h1>
           <p className="mt-3 max-w-lg text-sm leading-relaxed text-ink/60">
-            {checkoutCopy.demoNote}
+            {upsellEnabled
+              ? "Enter your info and card. You won’t be charged until you finish — tickets can still be added to this cart on the next screen."
+              : checkoutCopy.demoNote}
           </p>
 
           <div className="mt-5 flex flex-wrap gap-2 sm:mt-6 sm:gap-3">
@@ -375,7 +517,7 @@ export function CheckoutExperience({
                         type="radio"
                         name="shippingMethod"
                         checked={active}
-                        onChange={() => setShippingId(method.id)}
+                        onChange={() => void handleShippingChange(method.id)}
                         className="h-5 w-5 shrink-0 accent-ink"
                       />
                       <span className="min-w-0">
@@ -403,7 +545,9 @@ export function CheckoutExperience({
 
           <Section title="Payment">
             <p className="text-sm text-ink/55">
-              Demo only — use any card number (e.g. 4242 4242 4242 4242).
+              {upsellEnabled
+                ? "Card is authorized for this cart only after you complete the next step. Demo: use 4242 4242 4242 4242."
+                : "Demo only — use any card number (e.g. 4242 4242 4242 4242)."}
             </p>
             <div className="mt-5">
               <label className={labelClass} htmlFor="card">
@@ -463,35 +607,43 @@ export function CheckoutExperience({
             </p>
           )}
 
-          {/* Desktop submit */}
           <button
             type="submit"
             disabled={submitting}
             className="mt-10 hidden min-h-12 w-full bg-ink px-8 py-4 font-display text-xl tracking-[0.2em] text-bone uppercase transition hover:bg-black disabled:opacity-60 lg:inline-flex lg:items-center lg:justify-center"
           >
-            {payLabel}
+            {submitLabel}
           </button>
 
           <p className="mt-4 hidden text-center font-mono text-[10px] tracking-[0.18em] text-ink/40 uppercase lg:block">
-            No real charge · Shopify checkout later
+            {upsellEnabled
+              ? "Card on file · charge happens after upsell step"
+              : "No real charge · Shopify checkout later"}
           </p>
         </form>
       </div>
 
-      {/* Sticky pay bar — mobile / tablet */}
-      <div className="fixed inset-x-0 bottom-0 z-30 border-t border-ink/10 bg-paper/95 px-4 pt-3 backdrop-blur safe-pb lg:hidden">
+      <div className="shrink-0 border-t border-ink/10 bg-paper px-4 pt-3 safe-pb lg:hidden">
         <button
           type="submit"
           form="checkout-form"
           disabled={submitting}
           className="flex min-h-12 w-full items-center justify-center bg-ink px-6 py-3.5 font-display text-lg tracking-[0.16em] text-bone uppercase disabled:opacity-60"
         >
-          {payLabel}
+          {submitLabel}
         </button>
         <p className="mt-2 pb-1 text-center font-mono text-[9px] tracking-[0.16em] text-ink/40 uppercase">
-          No real charge · Shopify checkout later
+          {upsellEnabled
+            ? "Card on file · charge after upsell"
+            : "No real charge · Shopify checkout later"}
         </p>
       </div>
+
+      <PaymentProcessingModal
+        open={modalOpen}
+        ready={checkoutReady}
+        onComplete={handleModalComplete}
+      />
     </div>
   );
 }

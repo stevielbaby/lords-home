@@ -93,3 +93,26 @@ select:-webkit-autofill {
   min-height: 2.75rem;
   min-width: 2.75rem;
 }
+
+/* Payment modal — dove carries the branch across the path */
+.dove-flight {
+  left: var(--dove-progress, 0%);
+  transform: translate(-50%, -50%);
+  transition: left 80ms linear;
+  will-change: left;
+}
+
+@keyframes dove-wing {
+  0%,
+  100% {
+    transform: rotate(-6deg) translateY(0);
+  }
+  50% {
+    transform: rotate(6deg) translateY(-3px);
+  }
+}
+
+.dove-flight.is-flying svg {
+  animation: dove-wing 0.45s ease-in-out infinite;
+  transform-origin: center;
+}

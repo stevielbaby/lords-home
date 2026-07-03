@@ -3,7 +3,7 @@ import { funnelConfig } from "@/lib/funnel";
 import { redirect } from "next/navigation";
 
 type EventsPageProps = {
-  searchParams: Promise<{ order?: string }>;
+  searchParams: Promise<{ cart?: string; order?: string }>;
 };
 
 export default async function EventsPage({ searchParams }: EventsPageProps) {
@@ -12,11 +12,11 @@ export default async function EventsPage({ searchParams }: EventsPageProps) {
   }
 
   const params = await searchParams;
-  const orderId = params.order;
-
-  if (!orderId) {
+  // Prefer cart= (new flow). Legacy order= links fall back to home offer.
+  const cartId = params.cart;
+  if (!cartId) {
     redirect("/#offer");
   }
 
-  return <EventsOffer orderId={orderId} />;
+  return <EventsOffer cartId={cartId} />;
 }
